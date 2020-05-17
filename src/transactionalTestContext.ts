@@ -11,6 +11,7 @@ export default class TransactionalTestContext {
     if (this.queryRunner) {
       throw new Error('Context already started');
     }
+
     try {
       this.queryRunner = this.buildWrappedQueryRunner();
       this.monkeyPatchQueryRunnerCreation(this.queryRunner);
@@ -41,8 +42,16 @@ export default class TransactionalTestContext {
   }
 
   private monkeyPatchQueryRunnerCreation(queryRunner: QueryRunnerWrapper): void {
+    const patch = () => Promise.resolve();
     this.originQueryRunnerFunction = Connection.prototype.createQueryRunner;
-    Connection.prototype.createQueryRunner = () => queryRunner;
+
+    Connection.prototype.createQueryRunner = () => ({
+      ...queryRunner,
+      startTransaction: patch,
+      commitTransaction: patch,
+      rollbackTransaction: patch,
+      release: patch,
+    });
   }
 
   private restoreQueryRunnerCreation(): void {
